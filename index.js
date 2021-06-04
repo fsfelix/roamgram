@@ -1,28 +1,6 @@
 const TelegramBotApi = require("node-telegram-bot-api");
-const RoamResearchPrivateApi = require("roam-research-private-api");
-
-class RoamApi extends RoamResearchPrivateApi {
-  async appendBlock(text, order = 0, uid) {
-    const result = await this.page.evaluate(
-      (text, order, uid) => {
-        if (!window.roamAlphaAPI) {
-          return Promise.reject("No Roam API detected");
-        }
-        const result = window.roamAlphaAPI.createBlock({
-          location: { "parent-uid": uid, order },
-          block: { string: text },
-        });
-        return Promise.resolve(result);
-      },
-      text,
-      order,
-      uid
-    );
-    // Let's give time to sync.
-    await this.page.waitForTimeout(1000);
-    return result;
-  }
-}
+const RoamApi = require("./clients/roam");
+const AnkiApi = require("./clients/anki");
 
 const main = async ({ token, adminId, roam: { graph, email, password } }) => {
   if (typeof adminId === "string") adminId = parseInt(adminId);
@@ -35,6 +13,7 @@ const main = async ({ token, adminId, roam: { graph, email, password } }) => {
   const roam = new RoamApi(graph, email, password, {
     headless: true,
   });
+  const anki = new AnkiApi();
 
   await roam.logIn();
   console.log("Logged into Roam");
@@ -43,6 +22,25 @@ const main = async ({ token, adminId, roam: { graph, email, password } }) => {
     bot.sendMessage(
       message.chat.id,
       `User id: ${message.from.id}\nChat id: ${message.chat.id}`
+    );
+  });
+
+  bot.onText(/\/card (.+)/, (message) => {
+    anki.addCard("front test", "back test")
+      .then((res) => {
+        if (res.error) {
+          bot.sendMessage(message.chat.id, `Error adding the card: ${res.error}.`)
+          return;
+        }
+
+        bot.sendMessage(message.chat.id, "Added the card!")
+      });
+  })
+
+  bot.onText(/\/health/, (message) => {
+    bot.sendMessage(
+      message.chat.id,
+      "Bot is up :)"
     );
   });
 
