@@ -26,6 +26,10 @@ const main = async ({ token, adminId, roam: { graph, email, password } }) => {
   });
 
   bot.onText(/\/card (.+)/, (message) => {
+    if (!validator(message)) {
+      return;
+    }
+
     anki.addCard("front test", "back test")
       .then((res) => {
         if (res.error) {
