@@ -25,12 +25,19 @@ const main = async ({ token, adminId, roam: { graph, email, password } }) => {
     );
   });
 
-  bot.onText(/\/card (.+)/, (message) => {
+  bot.on("polling_error", console.log);
+
+  const CARD_REGEX = /\/card ({.+}) ({.+})/
+  bot.onText(CARD_REGEX, (message) => {
     if (!validator(message)) {
       return;
     }
 
-    anki.addCard("front test", "back test")
+    const match = message.text.match(CARD_REGEX);
+    const front = match[1].replace(/{|}/g, "")
+    const back = match[2].replace(/{|}/g, "")
+
+    anki.addCard(front, back)
       .then((res) => {
         if (res.error) {
           bot.sendMessage(message.chat.id, `Error adding the card: ${res.error}.`)
