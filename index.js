@@ -1,15 +1,12 @@
 const TelegramBotApi = require("node-telegram-bot-api");
 const RoamApi = require("./clients/roam");
 const AnkiApi = require("./clients/anki");
+const adminValidator = require("./validators/admin");
 
 const main = async ({ token, adminId, roam: { graph, email, password } }) => {
   if (typeof adminId === "string") adminId = parseInt(adminId);
 
   const bot = new TelegramBotApi(token, { polling: true });
-  const validator = (message) => {
-    if (message.from.id == adminId) return true;
-    return false;
-  };
   const roam = new RoamApi(graph, email, password, {
     headless: true,
   });
@@ -27,17 +24,19 @@ const main = async ({ token, adminId, roam: { graph, email, password } }) => {
 
   bot.on("polling_error", console.log);
 
-  const CARD_REGEX = /\/card ({.+}) ({.+})/
+  const CARD_REGEX = /\/card ({.+}) ({.+}) ({.+})/
   bot.onText(CARD_REGEX, (message) => {
-    if (!validator(message)) {
+    if (!adminValidator(message, adminId)) {
       return;
     }
 
     const match = message.text.match(CARD_REGEX);
     const front = match[1].replace(/{|}/g, "")
     const back = match[2].replace(/{|}/g, "")
+    const deck = match[3].replace(/{|}/g, "")
 
-    anki.addCard(front, back)
+    console.log("Adding ", front, back, deck);
+    anki.addCard(front, back, deck)
       .then((res) => {
         if (res.error) {
           bot.sendMessage(message.chat.id, `Error adding the card: ${res.error}.`)
@@ -57,7 +56,7 @@ const main = async ({ token, adminId, roam: { graph, email, password } }) => {
 
   bot.onText(/\/add (.+)/, (message) => {
     const chatId = message.chat.id;
-    if (validator(message)) {
+    if (adminValidator(message, adminId)) {
       const dailyNoteId = roam.dailyNoteUid();
       const dailyNoteTitle = roam.dailyNoteTitle();
 
